@@ -177,7 +177,7 @@ const LoginPage = () => {
   const [btnLoading, setBtnLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false); 
 
-  const { isAuth, setUser, loading, setIsAuth } = useAppData();
+  const { isAuth, setUser, loading, setIsAuth,fetchApplications } = useAppData();
 if(loading)return <Loading/>
   if (isAuth) return redirect("/");
 
@@ -205,6 +205,7 @@ if(loading)return <Loading/>
 
       setUser(data.userObject);
       setIsAuth(true);
+      fetchApplications();
 
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {

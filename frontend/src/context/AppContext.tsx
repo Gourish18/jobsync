@@ -1,5 +1,5 @@
 "use client"
-import { AppContextType, AppProviderProps, User } from '@/type';
+import { AppContextType, Application, AppProviderProps, User } from '@/type';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import Cookies from 'js-cookie';
@@ -173,15 +173,63 @@ async function updateResume(formData: FormData) {
     setLoading(false);
   }
 }
+async function applyJob(job_id: number) {
+  setBtnLoading(true);
+  try {
+    const { data } = await axios.post(
+      `${user_service}/api/user/apply/job`,
+      { job_id },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    toast.success(data.message);
+    fetchApplications();
+  } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.message || "Something went wrong");
+      } else {
+        toast.error("Something went wrong");
+      }
+    }
+    finally{
+      setBtnLoading(false);
+    }
+}
 async function logoutUser() {
   Cookies.set("token", "");
   setUser(null);
   setIsAuth(false);
   toast.success("Logout successful");
 }
+const [applications, setApplications] = useState<Application[] | null>(null);
+
+async function fetchApplications() {
+  try {
+    const { data } = await axios.get(
+      `${user_service}/api/user/application/all`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    setApplications(data);
+  } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        toast.error(error.response?.data?.message || "Something went wrong");
+      } else {
+        toast.error("Something went wrong");
+      }
+    }
+}
 useEffect(() => {
 
     fetchUser();
+    fetchApplications();
   
 })
   return (
@@ -199,7 +247,10 @@ useEffect(() => {
         updateResume,
         updateUser,
         addSkill,
-        removeSkill
+        removeSkill,
+        applyJob,
+        applications,
+        fetchApplications
       }}
     >
       {children}
