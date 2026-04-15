@@ -205,7 +205,7 @@ async function logoutUser() {
   setIsAuth(false);
   toast.success("Logout successful");
 }
-const [applications, setApplications] = useState<Application[] | null>(null);
+const [applications, setApplications] = useState<Application[] >([]);
 
 async function fetchApplications() {
   try {

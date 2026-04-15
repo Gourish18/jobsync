@@ -7,11 +7,12 @@ import Info from "./components/info";
 import Skills from "./components/skills";
 import Company from "./components/company";
 import { useRouter } from "next/navigation";
+import AppliedJobs from "./components/appliedJobs";
 
 
 
 const AccountPage = () => {
-  const { isAuth, user, loading } = useAppData();
+  const { isAuth, user, loading ,applications} = useAppData();
   const router = useRouter();
 
   useEffect(() => {
@@ -29,6 +30,10 @@ const AccountPage = () => {
           {user.role === "jobseeker" && (
             <Skills user={user} isYourAccount={true} />
           )}
+
+         { user.role === "jobseeker" && (
+       <AppliedJobs applications={applications} />
+)}
           {user.role === "recruiter" && (
             <Company />
           )}
