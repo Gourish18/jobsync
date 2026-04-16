@@ -2,15 +2,30 @@ import app from "./app.js";
 import dotenv from "dotenv";
 import { sql } from "./utils/db.js";
 import { createClient } from "redis";
+
 dotenv.config();
-export const redisClient = createClient({
-  url: process.env.Redis_url,
-})
-redisClient.connect().then(() =>{
-  console.log("Redis client connected successfully");
-}).catch((err)=>{
-  console.error("Failed to connect to Redis:",err);
-});
+
+// ✅ Redis (optional)
+export let redisClient: any = null;
+
+if (process.env.REDIS_URL) {
+  redisClient = createClient({
+    url: process.env.REDIS_URL,
+  });
+
+  redisClient
+    .connect()
+    .then(() => {
+      console.log("✅ Redis connected");
+    })
+    .catch((error:any) => {
+      console.error("⚠️ Redis failed, continuing without it:", error.message);
+    });
+} else {
+  console.log("⚠️ REDIS_URL not provided, skipping Redis");
+}
+
+// ✅ DB INIT
 async function initDb() {
   try {
     await sql`
@@ -23,45 +38,52 @@ async function initDb() {
         END IF;
       END$$;
     `;
-    await sql`
-  CREATE TABLE IF NOT EXISTS users (
-    user_id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
-    phone_number VARCHAR(20) NOT NULL,
-    role user_role NOT NULL,
-    bio TEXT,
-    resume VARCHAR(255),
-    resume_public_id VARCHAR(255),
-    profile_pic VARCHAR(255),
-    profile_pic_public_id VARCHAR(255),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    subscription TIMESTAMPTZ
-  );
-`;
-    await sql`
-  CREATE TABLE IF NOT EXISTS skills (
-    skill_id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE
-  );
-`;
 
     await sql`
-  CREATE TABLE IF NOT EXISTS user_skills (
-    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    skill_id INTEGER NOT NULL REFERENCES skills(skill_id) ON DELETE CASCADE,
-    PRIMARY KEY (user_id, skill_id)
-  );
-`;
-    console.log("✅Database initialized successfully");
+      CREATE TABLE IF NOT EXISTS users (
+        user_id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        phone_number VARCHAR(20) NOT NULL,
+        role user_role NOT NULL,
+        bio TEXT,
+        resume VARCHAR(255),
+        resume_public_id VARCHAR(255),
+        profile_pic VARCHAR(255),
+        profile_pic_public_id VARCHAR(255),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        subscription TIMESTAMPTZ
+      );
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS skills (
+        skill_id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL UNIQUE
+      );
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS user_skills (
+        user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+        skill_id INTEGER NOT NULL REFERENCES skills(skill_id) ON DELETE CASCADE,
+        PRIMARY KEY (user_id, skill_id)
+      );
+    `;
+
+    console.log("✅ Database initialized successfully");
   } catch (error) {
-    console.error("❌Error initializing database:", error);
+    console.error("❌ Error initializing database:", error);
     process.exit(1);
   }
 }
+
+// ✅ START SERVER
 initDb().then(() => {
-  app.listen(process.env.PORT, () => {
-    console.log(`Auth service is running on port ${process.env.PORT}`);
+  const PORT = process.env.PORT || 5000;
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Auth service running on port ${PORT}`);
   });
 });

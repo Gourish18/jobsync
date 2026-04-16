@@ -6,8 +6,9 @@ import bcrypt from "bcrypt";
 import jwt, { decode } from "jsonwebtoken";
 import axios from "axios";
 import { forgotPasswordTemplate } from "../templete.js";
-import { publishToTopic } from "../producer.js";
 import { redisClient } from "../index.js";
+import { sendEmail } from "../utils/sendEmail.js";
+
 export const registerUser = TryCatch(async (req, res, next) => {
   const { name, email, password, phoneNumber, role, bio } = req.body;
   if (!name || !email || !password || !phoneNumber || !role) {
@@ -92,44 +93,90 @@ export const loginUser = TryCatch(async (req, res, next) => {
     token,
   });
 });
-
 export const forgotPassword = TryCatch(async (req, res, next) => {
   const { email } = req.body;
+
   if (!email) {
     throw new ErrorHandler(400, "Email is required");
   }
+
   const user = await sql`SELECT user_id,email FROM users WHERE email=${email}`;
-  if(user.length === 0){
+
+  if (user.length === 0) {
     return res.json({
-      message:"If a user with this email exists, a password reset link will be sent"
-    })
+      message:
+        "If a user with this email exists, a password reset link will be sent",
+    });
   }
-  const users=user[0];
+
+  const users = user[0];
+
   const resetToken = jwt.sign(
-    { 
+    {
       email: users.email,
-      type:"reset"
-     },
-     process.env.JWT_SEC as string,{
-      expiresIn:"15m"
-     }
+      type: "reset",
+    },
+    process.env.JWT_SEC as string,
+    {
+      expiresIn: "15m",
+    }
   );
+
   const resetLink = `${process.env.FRONTEND_URL}/reset/${resetToken}`;
-  await redisClient.set(`forgot:${email}`,resetToken,{
-    EX:60*15
+
+  await redisClient.set(`forgot:${email}`, resetToken, {
+    EX: 60 * 15,
   });
-  const message={
-    to:email,
-    subject:"Reset your password",
-    html:forgotPasswordTemplate(resetLink)
+
+  const message = {
+    to: email,
+    subject: "Reset your password",
+    html: forgotPasswordTemplate(resetLink),
   };
-  publishToTopic("send-mail",message).catch((err)=>{
-    console.log("❌ Failed to send message:",err);
-  });
+
+  // ✅ EMAIL SENT HERE
+  await sendEmail(message);
+
   res.json({
-    message:"If a user with this email exists, a password reset link will be sent"
+    message:
+      "If a user with this email exists, a password reset link will be sent",
   });
 });
+// export const forgotPassword = TryCatch(async (req, res, next) => {
+//   const { email } = req.body;
+//   if (!email) {
+//     throw new ErrorHandler(400, "Email is required");
+//   }
+//   const user = await sql`SELECT user_id,email FROM users WHERE email=${email}`;
+//   if(user.length === 0){
+//     return res.json({
+//       message:"If a user with this email exists, a password reset link will be sent"
+//     })
+//   }
+//   const users=user[0];
+//   const resetToken = jwt.sign(
+//     { 
+//       email: users.email,
+//       type:"reset"
+//      },
+//      process.env.JWT_SEC as string,{
+//       expiresIn:"15m"
+//      }
+//   );
+//   const resetLink = `${process.env.FRONTEND_URL}/reset/${resetToken}`;
+//   await redisClient.set(`forgot:${email}`,resetToken,{
+//     EX:60*15
+//   });
+//   const message={
+//     to:email,
+//     subject:"Reset your password",
+//     html:forgotPasswordTemplate(resetLink)
+//   };
+
+//   res.json({
+//     message:"If a user with this email exists, a password reset link will be sent"
+//   });
+// });
 export const resetPassword = TryCatch(async (req, res, next) => {
   // const {token}  = req.params;
   const token = req.params.token as string;
